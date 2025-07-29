@@ -94,7 +94,7 @@ jobs:
               shell: bash
               run: |
                 PR_URL=$(gh pr create \
-                    --base main \
+                    --base dev \
                     --title "${{ inputs.pr_title }}" \
                     --body "${{ inputs.pr_body }}" \
                     --base dev \
