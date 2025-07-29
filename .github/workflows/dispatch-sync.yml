@@ -1,0 +1,38 @@
+name: "Sync: Create Prs"
+run-name: "sync Prs"
+
+on:
+    workflow_dispatch:
+        inputs:
+            sync_branch:
+                description: "Branch to sync with"
+                required: true
+                type: string
+            pr_title:
+                description: "Title for the PR"
+                required: true
+                type: string
+                default: "Sync with main branch"
+            pr_body:
+                description: "Body for the PR"
+                required: false
+                type: string
+                default: "This PR syncs the current branch with the main branch."
+            runner:
+                description: "Runner to use for the workflow"
+                required: false
+                type: string
+                default: '["ubuntu-latest"]'
+jobs:
+    sync-matrix:
+        strategy:
+            fail-fast: false
+            matrix:
+                repo: [ 'nodeTest', 'javaTest' ]
+        uses: ./.github/workflows/sync.yml
+        name: "Sync with main branch for ${{ matrix.repo }}"
+        with:
+            sync_branch: ${{inputs.sync_branch}}-${{ matrix.repo }}
+            pr_title: ${{ inputs.pr_title }}
+            pr_body: ${{ inputs.pr_body }}
+            runner: ${{ inputs.runner }}
