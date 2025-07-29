@@ -48,6 +48,10 @@ jobs:
               with:
                 fetch-depth: 0
                 token: ${{ secrets.GH_PAT }}
+            - name: Fetch all remote branches
+              shell: bash
+              run: |
+                git fetch origin "+refs/heads/*:refs/remotes/origin/*"
             - name: List all remote branches
               shell: bash
               run: |
