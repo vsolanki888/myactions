@@ -69,7 +69,7 @@ jobs:
                     echo "has_conflicts=false" >> $GITHUB_OUTPUT
                 else
                     echo "has_conflicts=true" >> $GITHUB_OUTPUT
-                    echo "Merge conflicts detected."
+                    echo "Merge conflicts detected.."
                     git status
                     exit 1
                 fi
