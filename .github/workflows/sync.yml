@@ -48,6 +48,11 @@ jobs:
               with:
                 fetch-depth: 0
                 token: ${{ secrets.GH_PAT }}
+            - name: List all remote branches
+              shell: bash
+              run: |
+                echo "Remote branches:"
+                git branch -r
             - name: Validate required branches exist
               shell: bash
               run: |
