@@ -22,6 +22,9 @@ on:
                 required: false
                 type: string
                 default: '["ubuntu-latest"]'
+        secrets:
+            GH_PAT:
+                required: true
         outputs:
             pr_number:
                 description: 'Number of the created PR'

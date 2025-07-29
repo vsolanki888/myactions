@@ -36,3 +36,5 @@ jobs:
             pr_title: ${{ inputs.pr_title }}
             pr_body: ${{ inputs.pr_body }}
             runner: ${{ inputs.runner }}
+        secrets:
+            GH_PAT: ${{ secrets.GH_PAT }}
