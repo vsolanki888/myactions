@@ -5,7 +5,7 @@ on:
     workflow_dispatch:
         inputs:
             sync_branch:
-                description: "Branch to sync with"
+                description: "Sync branch name"
                 required: true
                 type: string
             pr_title:
