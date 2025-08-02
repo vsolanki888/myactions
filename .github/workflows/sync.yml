@@ -53,7 +53,6 @@ jobs:
             - name: Checkout target repository
               uses: actions/checkout@v4
               with:
-                # This fetches the target repository into a specified path
                 repository: ${{ github.repository_owner }}/${{ inputs.target_repo_name }}
                 token: ${{ secrets.GH_PAT }}
                 fetch-depth: 0
@@ -83,11 +82,11 @@ jobs:
                     await github.rest.repos.getBranch({
                       owner: owner,
                       repo: repo,
-                      branch: 'yupdev'
+                      branch: 'dev' # Corrected branch name
                     });
-                    console.log("Branch 'yupdev' exists in the target repository.");
+                    console.log("Branch 'dev' exists in the target repository.");
                   } catch (error) {
-                    core.setFailed(`Error: The 'yupdev' branch does not exist in the target repository (${owner}/${repo}). Please check the branch name or create it.`);
+                    core.setFailed(`Error: The 'dev' branch does not exist in the target repository (${owner}/${repo}). Please check the branch name or create it.`);
                   }
               env:
                 GITHUB_TOKEN: ${{ secrets.GH_PAT }}
@@ -99,15 +98,19 @@ jobs:
                 git config user.name "GitHub Actions"
                 git config user.email "actions@github.com"
                 
-                # Create or checkout the sync branch
+                # Fetch main and dev explicitly within the target repo's context
+                git fetch origin main
+                git fetch origin dev # Ensure dev is fetched
+
+                # Create or checkout the sync branch from origin/dev
                 if git show-ref --verify --quiet refs/heads/${{ inputs.sync_branch }}; then
                     echo "Sync branch '${{ inputs.sync_branch }}' already exists locally. Checking it out and resetting."
                     git checkout ${{ inputs.sync_branch }}
                 else
-                    echo "Sync branch '${{ inputs.sync_branch }}' does not exist. Creating it from origin/yupdev."
-                    git checkout -b ${{ inputs.sync_branch }} origin/yupdev
+                    echo "Sync branch '${{ inputs.sync_branch }}' does not exist. Creating it from origin/dev." # Corrected base branch
+                    git checkout -b ${{ inputs.sync_branch }} origin/dev
                 fi
-                git reset --hard origin/yupdev
+                git reset --hard origin/dev # Corrected base branch
 
                 # Merge the source's main branch into the sync branch
                 if git merge origin/main --no-edit --no-ff; then
@@ -124,7 +127,8 @@ jobs:
               shell: bash
               working-directory: ./target-repo
               run: |
-                if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/yupdev)" ]; then
+                # Compare the current HEAD with the state of the dev branch in the target repo
+                if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/dev)" ]; then # Corrected comparison branch
                     echo "has_changes=false" >> $GITHUB_OUTPUT
                     echo "No new commits to sync."
                 else
@@ -147,7 +151,7 @@ jobs:
                 GITHUB_TOKEN: ${{ secrets.GH_PAT }}
               run: |
                 PR_URL=$(gh pr create \
-                    --base yupdev \
+                    --base dev \ # Corrected base branch for the PR
                     --title "${{ inputs.pr_title }}" \
                     --body "${{ inputs.pr_body }}" \
                     --head ${{ inputs.sync_branch }})
