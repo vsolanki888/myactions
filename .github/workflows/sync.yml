@@ -57,6 +57,11 @@ jobs:
               run: |
                 echo "Remote branches:"
                 git branch -r
+            - name: Debug - Show remote branches
+              shell: bash
+              run: |
+                git branch -a
+                git ls-remote --heads origin
             - name: Validate required branches exist (Robust Check)
               shell: bash
               run: |
