@@ -28,13 +28,13 @@ on:
         outputs:
             pr_number:
                 description: 'Number of the created PR'
-                value: '${{ jobs.sync.outputs.pr_number }}'
+                value: ${{ jobs.sync.outputs.pr_number }}
             pr_url:
                 description: 'URL of the created PR'
-                value: '${{ jobs.sync.outputs.pr_url }}'
+                value: ${{ jobs.sync.outputs.pr_url }}
             has_conflicts:
                 description: 'Indicates if there are merge conflicts'
-                value: '${{ jobs.sync.outputs.has_conflicts }}'
+                value: ${{ jobs.sync.outputs.has_conflicts }}
 jobs:
     sync:
         runs-on: ${{ fromJson(inputs.runner) }}
@@ -48,61 +48,62 @@ jobs:
               with:
                 fetch-depth: 0
                 token: ${{ secrets.GH_PAT }}
-            - name: Fetch all remote branches
+
+            - name: Validate required branches exist (via GitHub API)
+              id: validate_branches
+              uses: actions/github-script@v6
+              with:
+                script: |
+                  try {
+                    await github.rest.repos.getBranch({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      branch: 'main'
+                    });
+                    console.log("Branch 'main' exists.");
+                  } catch (error) {
+                    core.setFailed("Error: The 'main' branch does not exist. Please check the branch name or create it.");
+                  }
+                  try {
+                    await github.rest.repos.getBranch({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      branch: 'dev'
+                    });
+                    console.log("Branch 'dev' exists.");
+                  } catch (error) {
+                    core.setFailed("Error: The 'dev' branch does not exist. Please check the branch name or create it.");
+                  }
+              env:
+                GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
+            - name: Create or checkout sync branch from dev
               shell: bash
               run: |
-                git fetch origin "+refs/heads/*:refs/remotes/origin/*"
-            - name: List all remote branches
-              shell: bash
-              run: |
-                echo "Remote branches:"
-                git branch -r
-            - name: Debug - Show remote branches
-              shell: bash
-              run: |
-                git branch -a
-                git ls-remote --heads origin
-            - name: Validate required branches exist (Robust Check)
-              shell: bash
-              run: |
-                echo "Checking for required branches..."
-                echo "Available remote branches:"
-                git branch -r
-                
-                # Check for main branch
-                if git ls-remote --heads origin main | grep -q .; then
-                    echo "✓ Branch 'main' exists on origin."
+                git fetch origin dev
+                if git show-ref --verify --quiet refs/heads/${{ inputs.sync_branch }}; then
+                    echo "Sync branch '${{ inputs.sync_branch }}' already exists locally. Checking it out and resetting."
+                    git checkout ${{ inputs.sync_branch }}
                 else
-                    echo "✗ Branch 'main' does not exist on origin."
-                    exit 1
+                    echo "Sync branch '${{ inputs.sync_branch }}' does not exist. Creating it from origin/dev."
+                    git checkout -b ${{ inputs.sync_branch }} origin/dev
                 fi
-                
-                # Check for dev branch
-                if git ls-remote --heads origin dev | grep -q .; then
-                    echo "✓ Branch 'dev' exists on origin."
-                else
-                    echo "✗ Branch 'dev' does not exist on origin."
-                    exit 1
-                fi
-                
-                echo "✓ All required branches exist."
-            - name: Create sync branch from dev
-              shell: bash
-              run: |
-                git fetch origin
-                git checkout -b ${{ inputs.sync_branch }} origin/dev
+                git reset --hard origin/dev
+
             - name: Merge main into sync branch
               id: merge_main
               shell: bash
               run: |
+                git fetch origin main
                 if git merge origin/main --no-edit --no-ff; then
                     echo "has_conflicts=false" >> $GITHUB_OUTPUT
                 else
                     echo "has_conflicts=true" >> $GITHUB_OUTPUT
-                    echo "Merge conflicts detected.."
+                    echo "Merge conflicts detected."
                     git status
                     exit 1
                 fi
+            
             - name: Check for new commits
               id: check_changes
               shell: bash
@@ -112,13 +113,14 @@ jobs:
                     echo "No new commits to sync."
                 else
                     echo "has_changes=true" >> $GITHUB_OUTPUT
-                    
                 fi
+
             - name: Push sync branch
               if: steps.check_changes.outputs.has_changes == 'true'
               shell: bash
               run: |
-                git push origin ${{ inputs.sync_branch }}
+                git push origin ${{ inputs.sync_branch }} --force
+            
             - name: Create pull request
               id: create_pr
               if: steps.check_changes.outputs.has_changes == 'true'
