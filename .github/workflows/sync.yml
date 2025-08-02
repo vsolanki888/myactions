@@ -48,6 +48,11 @@ jobs:
               with:
                 fetch-depth: 0
                 token: ${{ secrets.GH_PAT }}
+            - name: Explicitly fetch main and dev branches
+              shell: bash
+              run: |
+                git fetch origin main:refs/remotes/origin/main
+                git fetch origin dev:refs/remotes/origin/dev
             - name: Fetch all remote branches
               shell: bash
               run: |
