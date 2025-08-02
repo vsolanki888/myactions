@@ -50,43 +50,75 @@ jobs:
             pr_url: ${{ steps.create_pr.outputs.pr_url }}
             has_conflicts: ${{ steps.merge_main.outputs.has_conflicts }}
         steps:
-            - name: Checkout repository
+            - name: Checkout target repository
               uses: actions/checkout@v4
               with:
+                # This fetches the target repository into a specified path
                 repository: ${{ github.repository_owner }}/${{ inputs.target_repo_name }}
                 token: ${{ secrets.GH_PAT }}
                 fetch-depth: 0
                 path: ./target-repo
 
-            - name: Validate required branches exist
-              shell: bash
-              run: |
-                if ! git show-ref --verify --quiet refs/remotes/origin/main; then
-                    echo "Branch 'main' does not exist."
-                    exit 1
-                fi
-                if ! git show-ref --verify --quiet refs/remotes/origin/dev; then
-                    echo "Branch 'dev' does not exist."
-                    exit 1
-                fi
+            - name: Validate required branches exist (via GitHub API)
+              id: validate_branches
+              uses: actions/github-script@v6
+              with:
+                script: |
+                  const owner = context.repo.owner;
+                  const repo = '${{ inputs.target_repo_name }}';
+                  
+                  console.log(`Checking branches in repository: ${owner}/${repo}`);
+                  
+                  try {
+                    await github.rest.repos.getBranch({
+                      owner: owner,
+                      repo: repo,
+                      branch: 'main'
+                    });
+                    console.log("Branch 'main' exists in the target repository.");
+                  } catch (error) {
+                    core.setFailed(`Error: The 'main' branch does not exist in the target repository (${owner}/${repo}). Please check the branch name or create it.`);
+                  }
+                  try {
+                    await github.rest.repos.getBranch({
+                      owner: owner,
+                      repo: repo,
+                      branch: 'dev'
+                    });
+                    console.log("Branch 'dev' exists in the target repository.");
+                  } catch (error) {
+                    core.setFailed(`Error: The 'dev' branch does not exist in the target repository (${owner}/${repo}). Please check the branch name or create it.`);
+                  }
+              env:
+                GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 
-            - name: Create sync branch from dev
+            - name: Setup Git and perform merge operations
               shell: bash
+              working-directory: ./target-repo
               run: |
-                git fetch origin
-                git checkout -b ${{ inputs.sync_branch }} origin/dev
-            - name: Merge main into sync branch
-              id: merge_main
-              shell: bash
-              run: |
+                git config user.name "GitHub Actions"
+                git config user.email "actions@github.com"
+                
+                # Create or checkout the sync branch
+                if git show-ref --verify --quiet refs/heads/${{ inputs.sync_branch }}; then
+                    echo "Sync branch '${{ inputs.sync_branch }}' already exists locally. Checking it out and resetting."
+                    git checkout ${{ inputs.sync_branch }}
+                else
+                    echo "Sync branch '${{ inputs.sync_branch }}' does not exist. Creating it from origin/dev."
+                    git checkout -b ${{ inputs.sync_branch }} origin/dev
+                fi
+                git reset --hard origin/dev
+
+                # Merge the source's main branch into the sync branch
                 if git merge origin/main --no-edit --no-ff; then
                     echo "has_conflicts=false" >> $GITHUB_OUTPUT
                 else
                     echo "has_conflicts=true" >> $GITHUB_OUTPUT
-                    echo "Merge conflicts detected.."
+                    echo "Merge conflicts detected."
                     git status
                     exit 1
                 fi
+            
             - name: Check for new commits
               id: check_changes
               shell: bash
@@ -97,14 +129,15 @@ jobs:
                     echo "No new commits to sync."
                 else
                     echo "has_changes=true" >> $GITHUB_OUTPUT
-                    
                 fi
+
             - name: Push sync branch
               if: steps.check_changes.outputs.has_changes == 'true'
               shell: bash
               working-directory: ./target-repo
               run: |
-                git push origin ${{ inputs.sync_branch }}
+                git push origin ${{ inputs.sync_branch }} --force
+            
             - name: Create pull request
               id: create_pr
               if: steps.check_changes.outputs.has_changes == 'true'
