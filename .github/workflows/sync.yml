@@ -83,11 +83,11 @@ jobs:
                     await github.rest.repos.getBranch({
                       owner: owner,
                       repo: repo,
-                      branch: 'yupdev'
+                      branch: 'dev'
                     });
-                    console.log("Branch 'yupdev' exists in the target repository.");
+                    console.log("Branch 'dev' exists in the target repository.");
                   } catch (error) {
-                    core.setFailed(`Error: The 'yupdev' branch does not exist in the target repository (${owner}/${repo}). Please check the branch name or create it.`);
+                    core.setFailed(`Error: The 'dev' branch does not exist in the target repository (${owner}/${repo}). Please check the branch name or create it.`);
                   }
               env:
                 GITHUB_TOKEN: ${{ secrets.GH_PAT }}
@@ -104,10 +104,10 @@ jobs:
                     echo "Sync branch '${{ inputs.sync_branch }}' already exists locally. Checking it out and resetting."
                     git checkout ${{ inputs.sync_branch }}
                 else
-                    echo "Sync branch '${{ inputs.sync_branch }}' does not exist. Creating it from origin/yupdev."
-                    git checkout -b ${{ inputs.sync_branch }} origin/yupdev
+                    echo "Sync branch '${{ inputs.sync_branch }}' does not exist. Creating it from origin/dev."
+                    git checkout -b ${{ inputs.sync_branch }} origin/dev
                 fi
-                git reset --hard origin/yupdev
+                git reset --hard origin/dev
 
                 # Merge the source's main branch into the sync branch
                 if git merge origin/main --no-edit --no-ff; then
@@ -124,7 +124,7 @@ jobs:
               shell: bash
               working-directory: ./target-repo
               run: |
-                if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/yupdev)" ]; then
+                if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/dev)" ]; then
                     echo "has_changes=false" >> $GITHUB_OUTPUT
                     echo "No new commits to sync."
                 else
@@ -147,7 +147,7 @@ jobs:
                 GITHUB_TOKEN: ${{ secrets.GH_PAT }}
               run: |
                 PR_URL=$(gh pr create \
-                    --base yupdev \
+                    --base dev \
                     --title "${{ inputs.pr_title }}" \
                     --body "${{ inputs.pr_body }}" \
                     --head ${{ inputs.sync_branch }})
