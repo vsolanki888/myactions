@@ -1,4 +1,5 @@
-# .github/workflows/sync.yml (Your reusable workflow)
+# .github/workflows/sync.yml
+
 name: 'Create sync PR'
 
 on:
@@ -23,7 +24,7 @@ on:
                 required: false
                 type: string
                 default: '["ubuntu-latest"]'
-            target_repo_name: # NEW INPUT: The name of the repository to perform the sync on
+            target_repo_name:
                 description: 'Name of the repository to sync'
                 required: true
                 type: string
@@ -40,6 +41,7 @@ on:
             has_conflicts:
                 description: 'Indicates if there are merge conflicts'
                 value: ${{ jobs.sync.outputs.has_conflicts }}
+
 jobs:
     sync:
         runs-on: ${{ fromJson(inputs.runner) }}
@@ -51,21 +53,22 @@ jobs:
             - name: Checkout target repository
               uses: actions/checkout@v4
               with:
-                repository: ${{ github.repository_owner }}/${{ inputs.target_repo_name }} # Use the passed repo name
+                # This fetches the target repository into a specified path
+                repository: ${{ github.repository_owner }}/${{ inputs.target_repo_name }}
                 token: ${{ secrets.GH_PAT }}
-                fetch-depth: 0 # Ensure full history for merge operations
-                path: ./target-repo # Checkout into a specific directory
+                fetch-depth: 0
+                path: ./target-repo
 
             - name: Validate required branches exist (via GitHub API)
               id: validate_branches
               uses: actions/github-script@v6
               with:
                 script: |
-                  const owner = context.repo.owner; // Owner of the current repo (where workflow lives)
-                  const repo = '${{ inputs.target_repo_name }}'; // The target repo name from input
-
+                  const owner = context.repo.owner;
+                  const repo = '${{ inputs.target_repo_name }}';
+                  
                   console.log(`Checking branches in repository: ${owner}/${repo}`);
-
+                  
                   try {
                     await github.rest.repos.getBranch({
                       owner: owner,
@@ -87,18 +90,14 @@ jobs:
                     core.setFailed(`Error: The 'yupdev' branch does not exist in the target repository (${owner}/${repo}). Please check the branch name or create it.`);
                   }
               env:
-                GITHUB_TOKEN: ${{ secrets.GH_PAT }} # Use the PAT for API calls
+                GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 
             - name: Setup Git and perform merge operations
               shell: bash
-              working-directory: ./target-repo # All commands run inside this directory
+              working-directory: ./target-repo
               run: |
                 git config user.name "GitHub Actions"
                 git config user.email "actions@github.com"
-                
-                # Fetch main and yupdev explicitly within the target repo's context
-                git fetch origin main
-                git fetch origin yupdev
                 
                 # Create or checkout the sync branch
                 if git show-ref --verify --quiet refs/heads/${{ inputs.sync_branch }}; then
@@ -108,7 +107,6 @@ jobs:
                     echo "Sync branch '${{ inputs.sync_branch }}' does not exist. Creating it from origin/yupdev."
                     git checkout -b ${{ inputs.sync_branch }} origin/yupdev
                 fi
-                # Always reset the branch to origin/yupdev to ensure a clean state
                 git reset --hard origin/yupdev
 
                 # Merge the source's main branch into the sync branch
@@ -124,10 +122,8 @@ jobs:
             - name: Check for new commits
               id: check_changes
               shell: bash
-              working-directory: ./target-repo # All commands run inside this directory
+              working-directory: ./target-repo
               run: |
-                # Compare the current HEAD with the state of the yupdev branch in the target repo
-                # This checks if the merge operation actually introduced new commits
                 if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/yupdev)" ]; then
                     echo "has_changes=false" >> $GITHUB_OUTPUT
                     echo "No new commits to sync."
@@ -138,7 +134,7 @@ jobs:
             - name: Push sync branch
               if: steps.check_changes.outputs.has_changes == 'true'
               shell: bash
-              working-directory: ./target-repo # All commands run inside this directory
+              working-directory: ./target-repo
               run: |
                 git push origin ${{ inputs.sync_branch }} --force
             
@@ -146,7 +142,7 @@ jobs:
               id: create_pr
               if: steps.check_changes.outputs.has_changes == 'true'
               shell: bash
-              working-directory: ./target-repo # All commands run inside this directory
+              working-directory: ./target-repo
               env:
                 GITHUB_TOKEN: ${{ secrets.GH_PAT }}
               run: |

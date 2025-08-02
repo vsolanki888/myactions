@@ -36,5 +36,6 @@ jobs:
             pr_title: ${{ inputs.pr_title }}
             pr_body: ${{ inputs.pr_body }}
             runner: ${{ inputs.runner }}
+            target_repo_name: ${{ matrix.repo }}
         secrets:
             GH_PAT: ${{ secrets.GH_PAT }}
