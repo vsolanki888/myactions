@@ -32,7 +32,7 @@ jobs:
         uses: ./.github/workflows/sync.yml
         name: "Sync with main branch for ${{ matrix.repo }}"
         with:
-            sync_branch: ${{inputs.sync_branch}}-${{ matrix.repo }}
+            sync_branch: ${{inputs.sync_branch}}
             pr_title: ${{ inputs.pr_title }}
             pr_body: ${{ inputs.pr_body }}
             runner: ${{ inputs.runner }}
