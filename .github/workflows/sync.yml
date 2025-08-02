@@ -57,17 +57,18 @@ jobs:
               run: |
                 echo "Remote branches:"
                 git branch -r
-            - name: Validate required branches exist
+            - name: Validate required branches exist (Robust Check)
               shell: bash
               run: |
-                if ! git show-ref --verify --quiet refs/remotes/origin/main; then
-                    echo "Branch 'main' does not exist."
+                if ! git branch -r | grep -q "origin/main"; then
+                    echo "Branch 'main' does not exist on origin."
                     exit 1
                 fi
-                if ! git show-ref --verify --quiet refs/remotes/origin/dev; then
-                    echo "Branch 'dev' does not exist."
+                if ! git branch -r | grep -q "origin/dev"; then
+                    echo "Branch 'dev' does not exist on origin."
                     exit 1
                 fi
+                echo "Required branches 'main' and 'dev' exist."
             - name: Create sync branch from dev
               shell: bash
               run: |
