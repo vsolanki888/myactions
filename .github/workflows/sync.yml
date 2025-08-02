@@ -65,15 +65,27 @@ jobs:
             - name: Validate required branches exist (Robust Check)
               shell: bash
               run: |
-                if ! git branch -r | grep -q "origin/main"; then
-                    echo "Branch 'main' does not exist on origin."
+                echo "Checking for required branches..."
+                echo "Available remote branches:"
+                git branch -r
+                
+                # Check for main branch
+                if git ls-remote --heads origin main | grep -q .; then
+                    echo "✓ Branch 'main' exists on origin."
+                else
+                    echo "✗ Branch 'main' does not exist on origin."
                     exit 1
                 fi
-                if ! git branch -r | grep -q "origin/dev"; then
-                    echo "Branch 'dev' does not exist on origin."
+                
+                # Check for dev branch
+                if git ls-remote --heads origin dev | grep -q .; then
+                    echo "✓ Branch 'dev' exists on origin."
+                else
+                    echo "✗ Branch 'dev' does not exist on origin."
                     exit 1
                 fi
-                echo "Required branches 'main' and 'dev' exist."
+                
+                echo "✓ All required branches exist."
             - name: Create sync branch from dev
               shell: bash
               run: |
