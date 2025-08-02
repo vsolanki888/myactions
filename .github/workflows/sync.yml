@@ -138,7 +138,7 @@ jobs:
               run: |
                 git push origin ${{ inputs.sync_branch }} --force
             
-            - name: Create pull request
+            - name: Create or update pull request
               id: create_pr
               if: steps.check_changes.outputs.has_changes == 'true'
               shell: bash
@@ -146,11 +146,20 @@ jobs:
               env:
                 GITHUB_TOKEN: ${{ secrets.GH_PAT }}
               run: |
-                PR_URL=$(gh pr create \
-                    --base dev \
-                    --title "${{ inputs.pr_title }}" \
-                    --body "${{ inputs.pr_body }}" \
-                    --head ${{ inputs.sync_branch }})
-                PR_NUMBER=$(echo $PR_URL | grep -oE '[0-9]+$')
+                # Check if a PR already exists from sync_branch to dev
+                EXISTING_PR_URL=$(gh pr list --base dev --head ${{ inputs.sync_branch }} --json url --jq '.[0].url')
+                if [ -n "$EXISTING_PR_URL" ]; then
+                  echo "PR already exists: $EXISTING_PR_URL"
+                  PR_URL=$EXISTING_PR_URL
+                  # Extract PR number from URL
+                  PR_NUMBER=$(echo $PR_URL | grep -oE '[0-9]+$')
+                else
+                  PR_URL=$(gh pr create \
+                      --base dev \
+                      --title "${{ inputs.pr_title }}" \
+                      --body "${{ inputs.pr_body }}" \
+                      --head ${{ inputs.sync_branch }})
+                  PR_NUMBER=$(echo $PR_URL | grep -oE '[0-9]+$')
+                fi
                 echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
                 echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
